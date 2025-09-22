@@ -1,0 +1,107 @@
+Here’s a clear, step‑by‑step guide to set up and run the Quotation AI Agent Bot in VS Code, from empty folder to generated quotes.
+
+## Prerequisites
+
+- Install VS Code and the Python extension, then open a project folder as a “workspace”.[1][2][3]
+- Install Python 3.9+ and ensure it’s available in PATH.[1]
+- Get an OpenAI API key and keep it ready for the .env file.[4][5][6][7]
+
+## 1) Create/open the project in VS Code
+
+- Open a terminal and run:
+  - mkdir rfq_agent_project && cd rfq_agent_project && code .[1]
+- In VS Code, confirm the folder is open as the workspace.[1]
+
+## 2) Create a virtual environment
+
+- Press Ctrl+Shift+P → “Python: Create Environment” → choose Venv → pick the interpreter.[1]
+- Ensure the selected interpreter is the new venv (bottom‑right status bar → Python: Select Interpreter).[1]
+
+## 3) Add project structure and files
+
+- Create folders:
+  - data/emails
+  - data/catalog
+  - output
+- Create files:
+  - main.py
+  - requirements.txt
+  - .env
+
+Tip: Use VS Code Explorer (New Folder/New File) or the integrated terminal.[3]
+
+## 4) Paste dependencies
+
+- requirements.txt:
+  - langchain>=0.1.0
+  - langchain-openai>=0.1.0
+  - openai>=1.0.0
+  - python-dotenv>=1.0.0
+
+Install them in the activated venv:
+- pip install -r requirements.txt[8][1]
+
+## 5) Add your API key to .env
+
+- .env:
+  - OPENAI_API_KEY=sk-...[5][6][7][4]
+- Never commit .env to git.
+
+## 6) Create the catalog file
+
+- data/catalog/catalog.json:
+```
+[
+  {"name": "Widget A", "sku": "WA", "unit_price": 10.0},
+  {"name": "Widget B", "sku": "WB", "unit_price": 20.0},
+  {"name": "Widget C", "sku": "WC", "unit_price": 30.0},
+  {"name": "Widget D", "sku": "WD", "unit_price": 40.0},
+  {"name": "Widget E", "sku": "WE", "unit_price": 50.0}
+]
+```
+
+## 7) Create 5–6 sample emails
+
+- Put plain .txt files in data/emails/, e.g.:
+  - rfq1.txt: “Request for quote: Widget A x 2 and Widget C x 1 …”
+  - nonrfq1.txt: “Following up on last week’s notes …”
+- The app will load every .txt from the directory via DirectoryLoader.[9][10][11]
+
+## 8) Paste the script into main.py
+
+- Copy the full main.py provided earlier into main.py.
+- That script:
+  - Loads emails from data/emails using DirectoryLoader/TextLoader.[10][11][9]
+  - Classifies RFQ via simple keywords.
+  - Extracts items with LLM using structured outputs with a Pydantic schema.[12][13][14]
+  - Matches to catalog and computes totals.
+  - Writes a text quote into output/ and prints a summary per email.
+
+Note: If emails were .eml/.msg, you could switch to UnstructuredEmailLoader; for .txt, DirectoryLoader is simplest.[15][16][17][9]
+
+## 9) Run in VS Code
+
+- Use the Run Python File in Terminal button at the top‑right of the editor, or right‑click → Run Python File in Terminal.[8][1]
+- Alternatively, open Terminal → New Terminal and run:
+  - python main.py[18][8]
+- If VS Code asks to select interpreter, choose your venv.[1]
+
+## 10) Verify outputs
+
+- Check the output/ folder for generated .txt quotes.
+- Watch the terminal for lines like:
+  - [rfq1] Quote saved to rfq1.txt (items: 2, missing: 0, total: $…).
+  - [nonrfq1] No quote — not an RFQ.
+
+## 11) Common fixes in VS Code
+
+- If imports fail, confirm the venv is selected and pip install happened within that venv.[8][1]
+- If OPENAI_API_KEY not found, confirm .env exists and is loaded via python‑dotenv, or set the env var in your shell.[19][4][5]
+- To re‑run quickly, press the Run play button again or F5; you can also use Run Selection/Line in Terminal (Shift+Enter) for snippets.[20][8]
+
+## 12) Optional improvements
+
+- Replace keyword RFQ check with an LLM classifier prompt using LangChain classification utilities.[21]
+- Add UnstructuredEmailLoader if working with raw email files.[16][17][15]
+- Add logs or tracing with your preferred tooling.
+

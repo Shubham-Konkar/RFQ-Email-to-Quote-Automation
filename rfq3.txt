@@ -1,0 +1,7 @@
+Subject: RFQ – Cloud Setup + Web Dev
+
+Hello Sales,
+Kindly send a quote for these services:
+Cloud Setup (AWS/Azure) x 1 (SKU: CLOUD-SETUP)
+Web Development Project (Basic) x 1 (SKU: WEB-DEV-BASIC)
+Please include taxes and a short validity note.

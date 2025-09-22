@@ -1,0 +1,7 @@
+[
+{ "name": "Web Development Project (Basic)", "sku": "WEB-DEV-BASIC", "unit_price": 2000.00 },
+{ "name": "Mobile App Development (MVP)", "sku": "APP-DEV-MVP", "unit_price": 5000.00 },
+{ "name": "IT Consulting (Per Hour)", "sku": "CONSULT-HR", "unit_price": 150.00 },
+{ "name": "SEO Optimization (Monthly)", "sku": "SEO-MONTHLY", "unit_price": 800.00 },
+{ "name": "Cloud Setup (AWS/Azure)", "sku": "CLOUD-SETUP", "unit_price": 1200.00 }
+]

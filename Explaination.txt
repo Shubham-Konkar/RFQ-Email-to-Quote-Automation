@@ -1,0 +1,115 @@
+
+### load_emails explained
+- A directory reader is pointed at data/emails and limited to files ending in .txt, so it only picks up text emails.  
+- Each file is opened with UTF‑8 encoding to avoid garbled characters on systems that default to other encodings.  
+- All files are loaded into a list of Document objects that include both the text and metadata like the file path.  
+- The code then converts each Document into a simple dictionary with two fields: id (taken from the filename without extension) and content (the actual email text), and returns a list of these dicts.  
+
+Why use DirectoryLoader and TextLoader?
+- The directory loader makes it easy to grab many files at once with a glob pattern and produce uniform Document objects.  
+- The text loader is the simplest way to read plain .txt files and lets the code specify UTF‑8 explicitly.  
+
+### load_catalog explained
+- The code opens data/catalog/catalog.json using UTF‑8 and reads a list of products, each with name, SKU, and unit_price.  
+- That list is used later to match extracted items from emails to actual catalog entries for pricing.  
+
+### simple_is_rfq explained
+- The function uses a case‑insensitive regex that looks for common phrases like “rfq,” “request for quote,” “please quote,” or “quotation.”  
+- If any of these phrases appear in the email text, it returns True (it’s likely an RFQ); otherwise it returns False.  
+
+### What is an RFQ?
+- RFQ means “Request for Quotation,” a message where a buyer asks a seller to provide prices for specific items or services.  
+- In practice, an RFQ email lists products, quantities, or specs and asks for a quote so the buyer can compare costs before purchasing.
+
+*LLM Extraction
+### LineItem 
+- Purpose: Represents one requested product line from an email.  
+- Fields: product is the product name or SKU as written; quantity is an integer count requested.  
+- Why: Enforces that each extracted line item is cleanly typed and ready for matching/pricing later.
+
+### EmailExtraction
+- Purpose: The full structured result of parsing an email.  
+- Fields: items is a list of LineItem objects; notes optionally carries any extra relevant details the model finds.  
+- Why: Guarantees downstream code receives a predictable container: a list of items plus optional notes.
+
+### build_llm
+- Purpose: Create the LLM client used for extraction.  
+- What it does: Returns a chat model configured with model="gpt-4o-mini" and temperature=0 for deterministic, repeatable extraction behavior.  
+- Why: Temperature 0 reduces variability so the same email yields the same structured fields reliably.
+
+### extract_items_with_llm
+- Purpose: Run a prompt-guided, schema‑constrained extraction on one email’s text.  
+- Steps it performs:  
+  - Wraps the base model with with_structured_output(EmailExtraction) so the output must conform to the EmailExtraction schema.  
+  - Builds a concise two‑message prompt: a system instruction to extract products and integer quantities, and a human message containing the actual email text via the {email} placeholder.  
+  - Pipes the prompt into the structured model to form a simple chain, and invokes it with the email text.  
+  - Returns a validated EmailExtraction instance, not raw text or ad‑hoc JSON, so later code can safely access items and notes.
+
+Direct answer: match_catalog tries to find each requested item from the email in the product catalog (by exact SKU or by a loose name match), builds a priced line for matches, and lists anything it couldn’t find; compute_totals adds up line totals, applies tax, and returns subtotal, tax, and grand total.
+
+*Matching and Pricing 
+### match_catalog in simple terms
+- Goal: Turn extracted requests into priced lines using the catalog.
+- How it works:
+  - For each requested item, it cleans the query text (trim + lowercase) and first looks for an exact SKU match in the catalog.  
+  - If no SKU match, it tries a simple “fuzzy‑ish” name check: exact name equality or “contains” in either direction (the request contains the catalog name or vice‑versa).  
+  - When a catalog item is found:
+    - Quantity is forced to at least 1.
+    - Unit price is read from the catalog.
+    - line_total is computed as quantity × unit_price, and a structured dict is appended to matched.  
+  - When no catalog item is found:
+    - It appends a record to missing with the original requested text and quantity so the quote can show what couldn’t be priced.  
+- Return value: A tuple (matched, missing) so later steps can price matched items and report unmatched ones.  
+
+### compute_totals in simple terms
+- Goal: Calculate the money totals for the quote.
+- How it works:
+  - subtotal = sum of line_total for every matched line.  
+  - tax = subtotal × tax_rate (rounded to 2 decimals).  
+  - total = subtotal + tax (rounded to 2 decimals).  
+- Return value: (subtotal, tax, total), all rounded for display and downstream use.
+
+
+
+*Quote generation
+### render_quote_text
+- Purpose: Assemble a readable quote string.  
+- What it does:
+  - Gets the current date and starts a lines list with a header (“Quotation”), the date, and a reference using email_id.  
+  - If there are matched items, it prints each as “Name (SKU) x Quantity @ $Unit = $LineTotal,” then appends Subtotal, Tax with the percent from tax_rate, and the final TOTAL.  
+  - If nothing matched, it adds a friendly note saying no catalog items matched.  
+  - If there are missing items, it adds an “Unavailable/Unmatched items” section listing each requested item and quantity so the recipient knows what couldn’t be priced.  
+  - Adds a closing “Thank you for your inquiry.” and joins all lines with newline characters, returning one complete text block ready to save.  
+
+### save_quote
+- Purpose: Persist the quote to disk.  
+- What it does:
+  - Builds a filename like output/<email_id>.txt.  
+  - Opens the file for writing with UTF‑8 encoding and writes the quote text so special characters render correctly across editors and operating systems.  
+  - Returns the Path to the saved file so calling code can log or display where the quote was written.
+
+
+*Orchestration*
+
+### What process_all_emails does
+- Loads the product catalog so prices and SKUs are available for matching and totals.[1]
+- Builds the OpenAI chat model (through LangChain) configured for structured extraction.[1]
+- Loads all .txt emails from the data folder with controlled UTF‑8 decoding.[1]
+- If there are no emails, logs a message and exits early.[1]
+- For each email:  
+  - Runs a quick regex classifier to decide if it’s an RFQ; if not, logs and skips.[1]
+  - Calls the structured‑output extractor to get EmailExtraction.items from the email text.[1]
+  - If no items were extracted, logs and continues to the next email.[1]
+  - Matches requested items to the catalog (by SKU or loose name match) to build priced lines and note any missing items.[1]
+  - If nothing matched, renders a “no items available” note and saves it as a quote file, then continues.[1]
+  - Otherwise computes subtotal, tax, and total, renders a full quote, saves it, and prints a concise summary with counts and total.[1]
+
+### Why the __main__ block
+- The if __name__ == "__main__": guard means the pipeline only runs automatically when this file is executed directly, not when imported; this is standard Python practice for scripts.[1]
+
+
+
+
+
+
+
